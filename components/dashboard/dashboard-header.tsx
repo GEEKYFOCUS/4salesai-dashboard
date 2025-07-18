@@ -1,9 +1,6 @@
 "use client"
 
-import { Menu, Bell, Search, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useAuth } from "@/hooks/use-auth"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +9,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import { useAuth } from "@/hooks/use-auth"
+import { Bell, Menu, Search, User } from "lucide-react"
 
 interface DashboardHeaderProps {
   onToggleSidebar: () => void
@@ -22,20 +22,24 @@ export function DashboardHeader({ onToggleSidebar, sidebarCollapsed }: Dashboard
   const { user, logout } = useAuth()
 
   return (
-    <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-6">
-      <div className="flex items-center gap-4">
+    <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-3 sm:px-6 w-full">
+      <div className="flex items-center gap-2 sm:gap-4 w-full">
         <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="h-9 w-9">
           <Menu className="h-4 w-4" />
           <span className="sr-only">Toggle sidebar</span>
         </Button>
 
-        <div className="relative">
+        <div className="relative flex-1 max-w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <Input type="search" placeholder="Search..." className="w-64 pl-8" />
+          <Input
+            type="search"
+            placeholder="Search..."
+            className="w-full sm:w-64 pl-8 pr-2"
+          />
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0 ml-2">
         <Button variant="ghost" size="icon">
           <Bell className="h-4 w-4" />
           <span className="sr-only">Notifications</span>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
-import { Bot, HelpCircle, Home, LogOut, MessageSquare, Phone, Settings, Upload } from "lucide-react"
+import { Bot, HelpCircle, Home, LogOut, MessageSquare, Phone, Rocket, Settings, Upload } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 
 const navigationItems = [
@@ -36,6 +36,12 @@ const navigationItems = [
     title: "Automation",
     url: "/dashboard/automation",
     icon: Phone,
+    permission: null,
+  },
+  {
+    title: "Deployment",
+    url: "/dashboard/deployment",
+    icon: Rocket,
     permission: null,
   },
 ]

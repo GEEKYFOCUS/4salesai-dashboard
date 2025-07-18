@@ -337,8 +337,8 @@ export function AutomationWorkflows() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Agents</SelectItem>
-                  {agents.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id.toString()}>
+                  {agents.map((agent, index) => (
+                    <SelectItem key={index} value={agent.id.toString()}>
                       {agent.name}
                     </SelectItem>
                   ))}

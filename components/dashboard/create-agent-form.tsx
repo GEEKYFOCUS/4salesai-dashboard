@@ -220,7 +220,7 @@ export function CreateAgentForm() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 w-full">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Create New Agent</h1>
         <p className="text-muted-foreground">
@@ -230,7 +230,7 @@ export function CreateAgentForm() {
 
       <div className="grid gap-6">
         {/* Agent Details */}
-        <Card>
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>Agent Details</CardTitle>
             <CardDescription>
@@ -245,6 +245,7 @@ export function CreateAgentForm() {
                 value={agentName}
                 onChange={(e) => setAgentName(e.target.value)}
                 placeholder="Enter agent name"
+                className="w-full max-w-full"
               />
             </div>
             <div className="space-y-2">
@@ -255,13 +256,14 @@ export function CreateAgentForm() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe your agent's purpose and capabilities"
                 rows={3}
+                className="w-full max-w-full"
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Training Files */}
-        <Card>
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>Training Files</CardTitle>
             <CardDescription>
@@ -269,8 +271,8 @@ export function CreateAgentForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <Upload className="mx-auto h-12 w-12 text-gray-400" />
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center w-full">
+              <Upload className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
               <div className="mt-4">
                 <Button
                   variant="outline"
@@ -302,7 +304,7 @@ export function CreateAgentForm() {
             {trainingFiles.length > 0 && (
               <div className="space-y-3">
                 <h4 className="font-medium">Uploaded Files ({trainingFiles.length})</h4>
-                <div className="grid gap-3">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                   {trainingFiles.map((fileInfo) => {
                     const FileIcon = getFileIcon(fileInfo.type)
                     return (
@@ -315,15 +317,15 @@ export function CreateAgentForm() {
                             <img
                               src={fileInfo.preview}
                               alt={fileInfo.name}
-                              className="w-12 h-12 object-cover rounded"
+                              className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
                             />
                           ) : (
-                            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-                              <FileIcon className="w-6 h-6 text-gray-500" />
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded flex items-center justify-center">
+                              <FileIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
                             </div>
                           )}
                           <div>
-                            <p className="font-medium text-sm">{fileInfo.name}</p>
+                            <p className="font-medium text-sm break-all max-w-[120px] sm:max-w-xs">{fileInfo.name}</p>
                             <p className="text-xs text-gray-500">
                               {formatFileSize(fileInfo.size)}
                             </p>
@@ -347,7 +349,7 @@ export function CreateAgentForm() {
         </Card>
 
         {/* Training URLs */}
-        <Card>
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>Training URLs</CardTitle>
             <CardDescription>
@@ -355,14 +357,15 @@ export function CreateAgentForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex space-x-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Input
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 placeholder="Enter URL (e.g., https://example.com/document)"
                 onKeyPress={(e) => e.key === 'Enter' && addUrl()}
+                className="w-full"
               />
-              <Button onClick={addUrl} size="sm">
+              <Button onClick={addUrl} size="sm" className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-1" />
                 Add
               </Button>
@@ -378,7 +381,7 @@ export function CreateAgentForm() {
                       key={urlInfo.id}
                       className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"
                     >
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 break-all max-w-[180px] sm:max-w-full">
                         <Link className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-mono">{urlInfo.url}</span>
                       </div>
@@ -399,7 +402,7 @@ export function CreateAgentForm() {
         </Card>
 
         {/* Upload Button */}
-        <Card>
+        <Card className="w-full">
           <CardContent className="pt-6">
             <Button
               onClick={uploadTrainingResources}
