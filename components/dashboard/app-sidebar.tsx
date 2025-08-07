@@ -68,15 +68,15 @@ interface AppSidebarProps {
 export function AppSidebar({ collapsed }: AppSidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, logout, hasPermission } = useAuth()
+  const { user} = useAuth()
 
   const handleLogout = () => {
-    logout()
+    
     router.push("/login")
   }
 
-  const filteredNavigationItems = navigationItems.filter((item) => !item.permission || hasPermission(item.permission))
-  const filteredSettingsItems = settingsItems.filter((item) => !item.permission || hasPermission(item.permission))
+  const filteredNavigationItems = navigationItems.filter((item) => !item.permission )
+  const filteredSettingsItems = settingsItems.filter((item) => !item.permission )
 
   const NavButton = ({ item, isActive }: { item: (typeof navigationItems)[0]; isActive: boolean }) => {
     const button = (
@@ -121,7 +121,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
         <div className="flex-1 overflow-y-auto p-2">
           {/* Main Navigation */}
           <div className="space-y-1">
-            {!collapsed && (
+            {!collapsed && (    
               <div className="px-2 py-2">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Main Navigation</h2>
               </div>

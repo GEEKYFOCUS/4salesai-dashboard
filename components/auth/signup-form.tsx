@@ -11,19 +11,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Eye, EyeOff } from "lucide-react"
-
+import { signup } from "@/app/_lib/data-service"
 export function SignupForm() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
-  })
+  }) 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,17 +35,15 @@ export function SignupForm() {
       setIsLoading(false)
       return
     }
-
-    try {
-      // Simulate signup process
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      router.push("/onboarding")
-    } catch (err) {
-      setError("An error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
+    const { user, error, accessToken } = await signup(formData);
+    if (error) {
+      setError(error.message);
+      setIsLoading(false);
+      return;
     }
-  }
+    setIsLoading(false);
+    // Optionally, handle successful signup (e.g., redirect)
+  };
 
   const handleGoogleSignUp = async () => {
     setIsLoading(true)
@@ -55,6 +53,7 @@ export function SignupForm() {
       // Simulate Google sign-up
       await new Promise((resolve) => setTimeout(resolve, 1000))
       router.push("/onboarding")
+
     } catch (err) {
       setError("Google sign-up failed. Please try again.")
     } finally {

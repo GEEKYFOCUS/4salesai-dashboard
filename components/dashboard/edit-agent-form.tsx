@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useAgents } from "@/components/dashboard/agents-context"
+import { getAIAgent, updateAIAgent } from "@/app/_lib/data-service"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -55,7 +55,6 @@ interface EditAgentFormProps {
 export function EditAgentForm({ agentId }: EditAgentFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const { agents, updateAgent, deleteAgent } = useAgents()
   const [agent, setAgent] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: "",
@@ -64,28 +63,50 @@ export function EditAgentForm({ agentId }: EditAgentFormProps) {
     otherIndustry: "",
     personality: "",
     avatar: "",
+    goal: "",
+    role: "",
+    platforms: [],
+    target_audience: "",
+    tone: "",
+    website: "",
   })
   const [showOtherIndustry, setShowOtherIndustry] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   useEffect(() => {
-    // Load agent data
-    const foundAgent = agents.find((a) => a.id.toString() === agentId)
-    if (foundAgent) {
-      setAgent(foundAgent)
-      const isOtherIndustry = Boolean(foundAgent.industry && !industryOptions.slice(0, -1).map(opt => opt.toLowerCase()).includes(foundAgent.industry))
-      setShowOtherIndustry(isOtherIndustry)
-      setFormData({
-        name: foundAgent.name || "",
-        description: foundAgent.description || "",
-        industry: isOtherIndustry ? "other" : (foundAgent.industry || ""),
-        otherIndustry: isOtherIndustry ? (foundAgent.industry || "") : "",
-        personality: foundAgent.personality || "",
-        avatar: foundAgent.avatar || defaultAvatars[0],
-      })
+    async function fetchAgent() {
+      setIsLoading(true)
+      try {
+        const res = await getAIAgent(agentId)
+        const { agent } = res?.data || {}
+        if (agent) {
+          setAgent(agent)
+          const isOtherIndustry = Boolean(agent.industry && !industryOptions.slice(0, -1).map(opt => opt.toLowerCase()).includes(agent.industry?.toLowerCase()))
+          setShowOtherIndustry(isOtherIndustry)
+          setFormData({
+            name: agent.name || "",
+            description: agent.description || "",
+            industry: isOtherIndustry ? "other" : (agent.industry || ""),
+            otherIndustry: isOtherIndustry ? (agent.industry || "") : "",
+            personality: agent.tone || "",
+            avatar: agent.avatar || defaultAvatars[0],
+            goal: agent.goal || "",
+            role: agent.role || "",
+            platforms: agent.platforms || [],
+            target_audience: agent.target_audience || "",
+            tone: agent.tone || "",
+            website: agent.website || "",
+          })
+        }
+      } catch (err) {
+        setAgent(null)
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [agentId, agents])
+    fetchAgent()
+  }, [agentId])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -119,30 +140,42 @@ export function EditAgentForm({ agentId }: EditAgentFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-
-    // Determine the final industry value
     const finalIndustry = formData.industry === "other" ? formData.otherIndustry : formData.industry
-
-    // Simulate saving
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    updateAgent({
-      ...agent,
-      ...formData,
-      industry: finalIndustry,
-    })
-    setIsLoading(false)
-    toast({
-      title: "Agent updated",
-      description: "Agent updated successfully!",
-      variant: "default"
-    })
-    router.push("/dashboard/agents")
+    try {
+      const updateData = {
+        ...formData,
+        industry: finalIndustry,
+        tone: formData.personality || formData.tone,
+      }
+      const res = await updateAIAgent(agentId, updateData)
+      if (res?.status === "success") {
+        toast({
+          title: "Agent updated",
+          description: "Agent updated successfully!",
+          variant: "default"
+        })
+        router.push("/dashboard/agents")
+      } else {
+        toast({
+          title: "Update failed",
+          description: res?.message || "Could not update agent.",
+          variant: "destructive"
+        })
+      }
+    } catch (err) {
+      toast({
+        title: "Update failed",
+        description: "Could not update agent.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleDelete = async () => {
     setShowDeleteDialog(false)
-    deleteAgent(agent.id)
+    // deleteAgent(agent.id) // This line was removed as per the new_code
     setShowDeleteDialog(false)
     toast({
       title: "Agent deleted",
@@ -247,6 +280,7 @@ export function EditAgentForm({ agentId }: EditAgentFormProps) {
                       <p className="text-xs text-muted-foreground">Or choose from default avatars below</p>
                     </div>
                   </div>
+                  
                   {/* Default Avatars */}
                   <div className="grid grid-cols-6 gap-4 mt-2">
                     {defaultAvatars.map((avatar, index) => (

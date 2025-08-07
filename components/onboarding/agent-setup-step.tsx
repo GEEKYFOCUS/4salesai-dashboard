@@ -9,38 +9,51 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { createAIAgent } from "@/app/_lib/data-service";
 
 interface AgentSetupStepProps {
   onNext: (data: any) => void
   onBack: () => void
   canGoBack: boolean
   formData: any
+  setFormData:any
+}
+interface AgentData {
+  agentName: string
+  personality: string
+  goals: string
+  communicationStyle: string
 }
 
-export function AgentSetupStep({ onNext, onBack, canGoBack, formData }: AgentSetupStepProps) {
-  const [agentData, setAgentData] = useState({
-    name: formData.agentName || `${formData.companyName || "Sales"} Agent`,
+export function AgentSetupStep({ onNext, onBack, canGoBack, formData, setFormData }: AgentSetupStepProps) {
+  
+  
+  const [agentData, setAgentData] = useState<AgentData>({
+    agentName: formData.agentName || `${formData.companyName || "Sales"} Agent`,
     personality: formData.personality || "",
     goals: formData.goals || "",
     communicationStyle: formData.communicationStyle || "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  console.log(formData, "final formData")
+  const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault()
-    onNext({ agentName: agentData.name, ...agentData })
+    const clientToken = sessionStorage.getItem("token")
+   await createAIAgent(formData,clientToken)
+    onNext(formData)
   }
 
   const handleInputChange = (field: string, value: string) => {
-    setAgentData((prev) => ({ ...prev, [field]: value }))
-  }
-
+    setAgentData((prev:AgentData) => ({ ...prev, [field]: value }));
+    setFormData((prev:Record<string, any>) => ({ ...prev, [field]: value }));
+  };
   const personalityOptions = [
     { value: "professional", label: "Professional", description: "Formal, knowledgeable, and trustworthy" },
     { value: "friendly", label: "Friendly", description: "Warm, approachable, and conversational" },
     { value: "consultative", label: "Consultative", description: "Advisory, solution-focused, and helpful" },
     { value: "enthusiastic", label: "Enthusiastic", description: "Energetic, passionate, and motivating" },
   ]
-
   return (
     <>
       <CardHeader>
@@ -53,8 +66,8 @@ export function AgentSetupStep({ onNext, onBack, canGoBack, formData }: AgentSet
             <Input
               id="agentName"
               placeholder="Sales Agent"
-              value={agentData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
+              value={agentData.agentName}
+              onChange={(e) => handleInputChange("agentName", e.target.value)}
               required
             />
           </div>
@@ -108,7 +121,7 @@ export function AgentSetupStep({ onNext, onBack, canGoBack, formData }: AgentSet
           <div className="bg-blue-50 p-4 rounded-lg">
             <h3 className="font-semibold text-blue-900 mb-2">Preview</h3>
             <p className="text-sm text-blue-700">
-              Your agent "{agentData.name}" will have a{" "}
+              Your agent "{agentData.agentName}" will have a{" "}
               <span className="font-medium">
                 {personalityOptions.find((p) => p.value === agentData.personality)?.label || "professional"}
               </span>{" "}

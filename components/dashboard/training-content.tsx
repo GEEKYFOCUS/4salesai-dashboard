@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { AlertCircle, Bot, CheckCircle, Clock, FileText, Link, Music, Plus, Trash2, Upload, Video, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { getAIAgents, trainAIAgent } from "@/app/_lib/data-service"
 
 interface TrainingFile {
   id: string
@@ -87,7 +88,7 @@ export function TrainingContent() {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
   const [urlInput, setUrlInput] = useState("")
   const [textInput, setTextInput] = useState("")
-  const [selectedAgent, setSelectedAgent] = useState("1")
+  const [selectedAgent, setSelectedAgent] = useState("")
   const [agents, setAgents] = useState<any[]>([])
   const [trainingFiles, setTrainingFiles] = useState<TrainingFile[]>([])
   const [dragActive, setDragActive] = useState(false)
@@ -98,6 +99,8 @@ export function TrainingContent() {
   const [pendingUrls, setPendingUrls] = useState<PendingUrl[]>([])
   const [pendingTexts, setPendingTexts] = useState<PendingText[]>([])
   const [isUploadingAll, setIsUploadingAll] = useState(false)
+  const [sourceType, setSourceType] = useState<'document' | 'website' | 'youtube' | 'audio' | 'video'>('document')
+  const [fileType, setFileType] = useState<string>("")
 
   // Calculate tokens used and remaining
   const currentTokens = estimateTokens(textInput)
@@ -106,36 +109,30 @@ export function TrainingContent() {
 
   // Load agents and training files on component mount
   useEffect(() => {
-    const loadData = () => {
-      // Load agents
-      const userAgents = JSON.parse(localStorage.getItem("userAgents") || "[]")
-      const defaultAgents = [
-        { id: 1, name: "Sales Agent Pro" },
-        { id: 2, name: "Support Assistant" },
-      ]
-      const allAgents = [...defaultAgents, ...userAgents]
-      setAgents(allAgents)
-
-      // Set default agent if available and none selected
-      if (allAgents.length > 0 && !selectedAgent) {
-        setSelectedAgent(allAgents[0].id.toString())
+    async function fetchAgents() {
+      try {
+        const res = await getAIAgents()
+        console.log(res, "ai-agents")
+        const agentsArr = res?.data?.agents || []
+        setAgents(agentsArr)
+        if (agentsArr.length > 0 && !selectedAgent) {
+          setSelectedAgent(agentsArr[0].agentId || agentsArr[0]._id)
+        }
+      } catch (err) {
+        setAgents([])
       }
-
-      // Load training files
-      reloadTrainingFiles()
     }
-
-    loadData()
+    fetchAgents()
 
     // Listen for agent updates
     const handleAgentUpdate = () => {
-      loadData()
+      fetchAgents()
     }
 
     // Listen for storage changes from other tabs
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "trainingFiles" || e.key === "userAgents") {
-        loadData()
+        fetchAgents()
       }
     }
 
@@ -244,7 +241,7 @@ export function TrainingContent() {
         size: formatFileSize(file.size),
         status: "processing",
         uploadDate: new Date().toISOString().split("T")[0],
-        agentId: agentData.id.toString(),
+        agentId: agentData.agentId.toString(),
         agentName: agentData.name,
         originalName: file.name,
       }
@@ -399,7 +396,7 @@ export function TrainingContent() {
       errorMessage: validation.errorMessage
     }
     
-    setPendingUrls(prev => [...prev, pendingUrl])
+    setPendingUrls(prev => [...prev, pendingUrl]);
     setUrlInput("")
   }
 
@@ -433,71 +430,43 @@ export function TrainingContent() {
     setPendingTexts(prev => prev.filter(t => t.id !== id))
   }
 
-  // Upload all pending items
+  // Upload all pending items (refactored for API)
   const uploadAllPendingItems = async () => {
     if (!selectedAgent || (pendingFiles.length === 0 && pendingUrls.length === 0 && pendingTexts.length === 0)) {
       return
     }
-
     setIsUploadingAll(true)
-    const agentData = agents.find((a) => a.id.toString() === selectedAgent)
-    if (!agentData) return
-
     try {
-      // Process files
+      // Document, Audio, Video: upload files
       for (const pendingFile of pendingFiles) {
         if (pendingFile.isValid) {
-          await processFile(pendingFile.file, agentData)
+          const fileType = getFileType(pendingFile.file)
+          await trainAIAgent({
+            agentId: selectedAgent,
+            source: fileType,
+            fileType: pendingFile.file.name.split('.').pop(),
+            files: [pendingFile.file],
+          })
         }
       }
-
-      // Process URLs
+      // Website: upload URLs
       for (const pendingUrl of pendingUrls) {
         if (pendingUrl.isValid) {
-          const urlId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
-          const newUrlFile: TrainingFile = {
-            id: urlId,
-            name: `URL: ${pendingUrl.url}`,
-            type: "url",
-            size: "0 KB",
-            status: "processing",
-            uploadDate: new Date().toISOString().split("T")[0],
-            agentId: agentData.id.toString(),
-            agentName: agentData.name,
-            url: pendingUrl.url,
-          }
-          setTrainingFiles((prev) => [...prev, newUrlFile])
+          await trainAIAgent({
+            agentId: selectedAgent,
+            source: 'website',
+            sourceUrl: pendingUrl.url,
+          })
         }
       }
-
-      // Process texts
-      for (const pendingText of pendingTexts) {
-        if (pendingText.isValid) {
-          const textId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
-          const newTextFile: TrainingFile = {
-            id: textId,
-            name: `Text: ${pendingText.content.substring(0, 50)}${pendingText.content.length > 50 ? "..." : ""}`,
-            type: "text",
-            size: `${pendingText.content.length} characters`,
-            status: "processing",
-            uploadDate: new Date().toISOString().split("T")[0],
-            agentId: agentData.id.toString(),
-            agentName: agentData.name,
-          }
-          setTrainingFiles((prev) => [...prev, newTextFile])
-        }
-      }
-
-      // Clear all pending items
+      // Youtube: upload URLs (if you want to support youtube as a source)
+      // Text: (not supported by API, skip or handle as document upload if needed)
       setPendingFiles([])
       setPendingUrls([])
       setPendingTexts([])
-
-      // Update localStorage
-      localStorage.setItem("trainingFiles", JSON.stringify(trainingFiles))
-
+      // Optionally reload training files here
     } catch (error) {
-      console.error("Error uploading items:", error)
+      // handle error, show toast or alert
     } finally {
       setIsUploadingAll(false)
     }
@@ -529,7 +498,7 @@ export function TrainingContent() {
               </SelectTrigger>
               <SelectContent>
                 {agents.map((agent) => (
-                  <SelectItem key={agent.id} value={agent.id.toString()}>
+                  <SelectItem key={agent.agentId} value={agent.agentId.toString()}>
                     <div className="flex items-center space-x-2">
                       <Bot className="h-4 w-4 text-blue-600" />
                       <span>{agent.name}</span>
@@ -897,11 +866,11 @@ export function TrainingContent() {
                 {/* Upload Button - Prominent */}
                 <div className="flex items-center justify-between pt-3 border-t border-blue-200">
                   <div className="text-sm text-blue-700">
-                    {pendingFiles.filter(f => f.isValid).length + pendingUrls.filter(u => u.isValid).length + pendingTexts.filter(t => t.isValid)} valid items ready to upload
+                    {(pendingFiles.filter(f => f.isValid)).length + pendingUrls.filter(u => u.isValid).length + pendingTexts.filter(t => t.isValid).length} valid items ready to upload
                   </div>
                   <Button
                     onClick={uploadAllPendingItems}
-                    disabled={isUploadingAll || (pendingFiles.filter(f => f.isValid).length + pendingUrls.filter(u => u.isValid).length + pendingTexts.filter(t => t.isValid)) === 0}
+                    disabled={isUploadingAll || (pendingFiles.filter(f => f.isValid).length + pendingUrls.filter(u => u.isValid).length + pendingTexts.filter(t => t.isValid).length) === 0}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
                     size="lg"
                   >
@@ -936,7 +905,7 @@ export function TrainingContent() {
                   <SelectContent>
                     <SelectItem value="all">All Agents</SelectItem>
                     {agents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id.toString()}>
+                      <SelectItem key={agent?.agentId} value={agent?.agentId.toString()}>
                         {agent.name}
                       </SelectItem>
                     ))}
@@ -1021,7 +990,7 @@ export function TrainingContent() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No training content yet</h3>
                   <p className="text-gray-600 mb-4">
                     {selectedAgent
-                      ? `No training content uploaded for ${agents.find((a) => a.id.toString() === selectedAgent)?.name || "this agent"} yet.`
+                      ? `No training content uploaded for ${agents.find((a) => a.agentId.toString() === selectedAgent)?.name || "this agent"} yet.`
                       : "Upload some training content to get started."}
                   </p>
                 </div>

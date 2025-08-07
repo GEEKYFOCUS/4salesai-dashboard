@@ -5,7 +5,7 @@ import type React from "react"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
-
+export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "4SalesAI - AI-Powered Sales Assistant",
   description: "Transform your sales process with AI-powered conversations",
