@@ -5,429 +5,381 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
-import { File, FileText, Image, Link, Plus, Upload, X } from "lucide-react"
-import { useRef, useState } from "react"
+import { Bot, Globe, Target, MessageSquare } from "lucide-react"
+import { useState } from "react"
+import { createAIAgent } from "@/app/_lib/data-service"
 
-// Supported file types for training resources
-const SUPPORTED_FILE_TYPES = {
-  'application/pdf': { icon: FileText, label: 'PDF' },
-  'text/plain': { icon: FileText, label: 'Text' },
-  'text/markdown': { icon: FileText, label: 'Markdown' },
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { icon: FileText, label: 'Word' },
-  'application/msword': { icon: FileText, label: 'Word' },
-  'image/jpeg': { icon: Image, label: 'JPEG' },
-  'image/png': { icon: Image, label: 'PNG' },
-  'image/gif': { icon: Image, label: 'GIF' },
-  'image/webp': { icon: Image, label: 'WebP' },
-  'text/csv': { icon: FileText, label: 'CSV' },
-  'application/json': { icon: FileText, label: 'JSON' },
-  'text/html': { icon: FileText, label: 'HTML' }
-}
+// Predefined options for better UX
+const PLATFORM_OPTIONS = [
+  { value: "website", label: "Website Application" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "telegram", label: "Telegram" },
+]
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const TONE_OPTIONS = [
+  { value: "friendly", label: "Friendly" },
+  { value: "professional", label: "Professional" },
+  { value: "casual", label: "Casual" },
+  { value: "consultative", label: "Consultative" },
+  { value: "formal", label: "Formal" },
+  { value: "enthusiastic", label: "Enthusiastic" },
+  { value: "calm", label: "Calm" },
+  { value: "humorous", label: "Humorous" },
+  { value: "serious", label: "Serious" },
+  { value: "helpful", label: "Helpful" },
+  { value: "authoritative", label: "Authoritative" }
+]
 
-interface TrainingFile {
-  id: string
-  file: File
-  preview?: string
-  type: string
+const INDUSTRY_OPTIONS = [
+  { value: "technology", label: "Technology" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "finance", label: "Finance & Banking" },
+  { value: "education", label: "Education" },
+  { value: "retail", label: "Retail & E-commerce" },
+  { value: "real-estate", label: "Real Estate" },
+  { value: "automotive", label: "Automotive" },
+  { value: "food-beverage", label: "Food & Beverage" },
+  { value: "travel", label: "Travel & Hospitality" },
+  { value: "consulting", label: "Consulting" },
+  { value: "marketing", label: "Marketing & Advertising" },
+  { value: "legal", label: "Legal Services" },
+  { value: "manufacturing", label: "Manufacturing" },
+  { value: "non-profit", label: "Non-profit" },
+  { value: "other", label: "Other" }
+]
+
+interface AgentFormData {
   name: string
-  size: number
-}
-
-interface TrainingUrl {
-  id: string
-  url: string
-  title?: string
+  description: string
+  platforms: string[]
+  tone: string
+  website: string
+  industry: string
+  target_audience: string
+  goal: string
 }
 
 export function CreateAgentForm() {
-  const [agentName, setAgentName] = useState("")
-  const [description, setDescription] = useState("")
-  const [trainingFiles, setTrainingFiles] = useState<TrainingFile[]>([])
-  const [trainingUrls, setTrainingUrls] = useState<TrainingUrl[]>([])
-  const [urlInput, setUrlInput] = useState("")
-  const [isUploading, setIsUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [formData, setFormData] = useState<AgentFormData>({
+    name: "",
+    description: "",
+    platforms: [],
+    tone: "",
+    website: "",
+    industry: "",
+    target_audience: "",
+    goal: ""
+  })
+  
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const validateFile = (file: File): { valid: boolean; error?: string } => {
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
-      return { valid: false, error: `File size must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB` }
-    }
-
-    // Check file type
-    if (!SUPPORTED_FILE_TYPES[file.type as keyof typeof SUPPORTED_FILE_TYPES]) {
-      return { valid: false, error: "File type not supported" }
-    }
-
-    return { valid: true }
+  const handleInputChange = (field: keyof AgentFormData, value: string | string[]) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files) return
-
-    Array.from(files).forEach(file => {
-      const validation = validateFile(file)
-      
-      if (!validation.valid) {
-        toast({
-          title: "File Upload Error",
-          description: validation.error,
-          variant: "destructive"
-        })
-        return
-      }
-
-      const fileInfo: TrainingFile = {
-        id: Math.random().toString(36).substr(2, 9),
-        file,
-        type: file.type,
-        name: file.name,
-        size: file.size
-      }
-
-      // Generate preview for images
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          setTrainingFiles(prev => 
-            prev.map(f => 
-              f.id === fileInfo.id 
-                ? { ...f, preview: e.target?.result as string }
-                : f
-            )
-          )
-        }
-        reader.readAsDataURL(file)
-      }
-
-      setTrainingFiles(prev => [...prev, fileInfo])
-    })
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
+  const togglePlatform = (platform: string) => {
+    setFormData(prev => ({
+      ...prev,
+      platforms: prev.platforms.includes(platform)
+        ? prev.platforms.filter(p => p !== platform)
+        : [...prev.platforms, platform]
+    }))
   }
 
-  const removeFile = (fileId: string) => {
-    setTrainingFiles(prev => prev.filter(f => f.id !== fileId))
+  const validateForm = (): { valid: boolean; errors: string[] } => {
+    const errors: string[] = []
+    
+    if (!formData.name.trim()) errors.push("Agent name is required")
+    if (!formData.description.trim()) errors.push("Description is required")
+    if (formData.platforms.length === 0) errors.push("At least one platform must be selected")
+    if (!formData.tone) errors.push("Communication tone is required")
+    if (!formData.industry) errors.push("Industry is required")
+    if (!formData.target_audience.trim()) errors.push("Target audience is required")
+    if (!formData.goal.trim()) errors.push("Primary goal is required")
+    
+    return { valid: errors.length === 0, errors }
   }
 
-  const addUrl = () => {
-    if (!urlInput.trim()) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    const validation = validateForm()
+    if (!validation.valid) {
       toast({
-        title: "URL Required",
-        description: "Please enter a valid URL",
+        title: "Validation Error",
+        description: validation.errors.join(", "),
         variant: "destructive"
       })
       return
     }
 
-    // Basic URL validation
-    try {
-      new URL(urlInput)
-    } catch {
-      toast({
-        title: "Invalid URL",
-        description: "Please enter a valid URL",
-        variant: "destructive"
-      })
-      return
-    }
-
-    const newUrl: TrainingUrl = {
-      id: Math.random().toString(36).substr(2, 9),
-      url: urlInput.trim()
-    }
-
-    setTrainingUrls(prev => [...prev, newUrl])
-    setUrlInput("")
-  }
-
-  const removeUrl = (urlId: string) => {
-    setTrainingUrls(prev => prev.filter(u => u.id !== urlId))
-  }
-
-  const uploadTrainingResources = async () => {
-    if (trainingFiles.length === 0 && trainingUrls.length === 0) {
-      toast({
-        title: "No Resources",
-        description: "Please add at least one training file or URL",
-        variant: "destructive"
-      })
-      return
-    }
-
-    setIsUploading(true)
+    setIsSubmitting(true)
 
     try {
-      // Create FormData for files
-      const formData = new FormData()
+      // Create FormData for submission
+      const formDataToSubmit: any = new FormData()
       
-      trainingFiles.forEach((fileInfo, index) => {
-        formData.append(`files[${index}]`, fileInfo.file)
-      })
-
-      trainingUrls.forEach((urlInfo, index) => {
-        formData.append(`urls[${index}]`, urlInfo.url)
-      })
-
       // Add agent details
-      formData.append('name', agentName)
-      formData.append('description', description)
+      Object.entries(formData).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          formDataToSubmit.append(key, JSON.stringify(value))
 
+        } else {
+          formDataToSubmit.append(key, JSON.stringify(value))
+        }
+      })
+
+      
+      // console.log(formDataToSubmit, "formDataToSubmit2")
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000))
 
+    
+console.log("formData",formData)
+const {data:responseData} = await createAIAgent(formData)
+const {data:agentData}= responseData
+const {agent}= agentData
       toast({
-        title: "Success",
-        description: "Agent created successfully with training resources",
+  title: "Success!",
+  description: "Your AI agent has been created successfully",
       })
-
       // Reset form
-      setAgentName("")
-      setDescription("")
-      setTrainingFiles([])
-      setTrainingUrls([])
-      setUrlInput("")
+      setFormData({
+        name: "",
+        description: "",
+        platforms: [],
+        tone: "",
+        website: "",
+        industry: "",
+        target_audience: "",
+        goal: ""
+      })
 
     } catch (error) {
       toast({
-        title: "Upload Failed",
-        description: "Failed to upload training resources. Please try again.",
+        title: "Creation Failed",
+        description: "Failed to create agent. Please try again.",
         variant: "destructive"
       })
     } finally {
-      setIsUploading(false)
+      setIsSubmitting(false)
     }
-  }
-
-  const getFileIcon = (fileType: string) => {
-    const fileInfo = SUPPORTED_FILE_TYPES[fileType as keyof typeof SUPPORTED_FILE_TYPES]
-    return fileInfo ? fileInfo.icon : File
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 w-full">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Create New Agent</h1>
+        <h1 className="text-3xl font-bold">Create Your AI Agent</h1>
         <p className="text-muted-foreground">
-          Set up your AI agent with training resources and configuration
+          Build a personalized AI agent that matches your business needs and communication style
         </p>
       </div>
 
-      <div className="grid gap-6">
-        {/* Agent Details */}
-        <Card className="w-full">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Agent Identity */}
+        <Card>
           <CardHeader>
-            <CardTitle>Agent Details</CardTitle>
+            <CardTitle className="flex items-center space-x-2">
+              <Bot className="h-5 w-5 text-blue-600" />
+              <span>Agent Identity</span>
+            </CardTitle>
             <CardDescription>
-              Basic information about your AI agent
+              Define your AI agent's basic information and personality
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="agent-name">Agent Name</Label>
+              <Label htmlFor="name">Agent Name *</Label>
               <Input
-                id="agent-name"
-                value={agentName}
-                onChange={(e) => setAgentName(e.target.value)}
-                placeholder="Enter agent name"
-                className="w-full max-w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe your agent's purpose and capabilities"
-                rows={3}
-                className="w-full max-w-full"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Training Files */}
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>Training Files</CardTitle>
-            <CardDescription>
-              Upload files to train your agent. Supported formats: PDF, Text, Markdown, Word, Images, CSV, JSON, HTML
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center w-full">
-              <Upload className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="mb-2"
-                >
-                  Choose Files
-                </Button>
-                <p className="text-sm text-gray-500">
-                  Drag and drop files here, or click to select
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Maximum file size: 10MB
-                </p>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                onChange={handleFileUpload}
-                className="hidden"
-                accept=".pdf,.txt,.md,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.csv,.json,.html"
-                aria-label="Upload training files"
-                title="Upload training files"
-              />
-            </div>
-
-            {/* File Previews */}
-            {trainingFiles.length > 0 && (
-              <div className="space-y-3">
-                <h4 className="font-medium">Uploaded Files ({trainingFiles.length})</h4>
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-                  {trainingFiles.map((fileInfo) => {
-                    const FileIcon = getFileIcon(fileInfo.type)
-                    return (
-                      <div
-                        key={fileInfo.id}
-                        className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"
-                      >
-                        <div className="flex items-center space-x-3">
-                          {fileInfo.preview ? (
-                            <img
-                              src={fileInfo.preview}
-                              alt={fileInfo.name}
-                              className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded flex items-center justify-center">
-                              <FileIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-medium text-sm break-all max-w-[120px] sm:max-w-xs">{fileInfo.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {formatFileSize(fileInfo.size)}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(fileInfo.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Training URLs */}
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>Training URLs</CardTitle>
-            <CardDescription>
-              Add web pages or documents URLs for training
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-2 w-full">
-              <Input
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="Enter URL (e.g., https://example.com/document)"
-                onKeyPress={(e) => e.key === 'Enter' && addUrl()}
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                placeholder="e.g., SalesBot Pro, CustomerCare AI"
                 className="w-full"
               />
-              <Button onClick={addUrl} size="sm" className="w-full sm:w-auto">
-                <Plus className="w-4 h-4 mr-1" />
-                Add
-              </Button>
+              <p className="text-sm text-gray-500">Choose a memorable name for your AI agent</p>
             </div>
 
-            {/* URL List */}
-            {trainingUrls.length > 0 && (
-              <div className="space-y-3">
-                <h4 className="font-medium">Added URLs ({trainingUrls.length})</h4>
-                <div className="space-y-2">
-                  {trainingUrls.map((urlInfo) => (
-                    <div
-                      key={urlInfo.id}
-                      className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"
-                    >
-                      <div className="flex items-center space-x-2 break-all max-w-[180px] sm:max-w-full">
-                        <Link className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-mono">{urlInfo.url}</span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeUrl(urlInfo.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="description">What does your agent do? *</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                placeholder="Describe your agent's purpose, capabilities, and what problems it solves..."
+                rows={3}
+                className="w-full"
+              />
+              <p className="text-sm text-gray-500">Explain your agent's role and responsibilities</p>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Upload Button */}
-        <Card className="w-full">
+        {/* Communication Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <MessageSquare className="h-5 w-5 text-green-600" />
+              <span>Communication Style</span>
+            </CardTitle>
+            <CardDescription>
+              Configure how your agent communicates with customers
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Communication Tone *</Label>
+              <Select value={formData.tone} onValueChange={(value) => handleInputChange("tone", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your preferred tone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TONE_OPTIONS.map((tone) => (
+                    <SelectItem key={tone.value} value={tone.value}>
+                      {tone.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-gray-500">Choose how your agent should sound when interacting with customers</p>
+              </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="target-audience">Who is your target audience? *</Label>
+              <Textarea
+                id="target-audience"
+                value={formData.target_audience}
+                onChange={(e) => handleInputChange("target_audience", e.target.value)}
+                placeholder="e.g., Small business owners aged 25-45, Tech-savvy professionals, Enterprise decision makers..."
+                rows={2}
+                className="w-full"
+              />
+              <p className="text-sm text-gray-500">Describe your ideal customers or users</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Business Context */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Globe className="h-5 w-5 text-purple-600" />
+              <span>Business Context</span>
+            </CardTitle>
+            <CardDescription>
+              Provide context about your business and industry
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Industry *</Label>
+              <Select value={formData.industry} onValueChange={(value) => handleInputChange("industry", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDUSTRY_OPTIONS.map((industry) => (
+                    <SelectItem key={industry.value} value={industry.value}>
+                      {industry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-gray-500">This helps your agent understand industry-specific terminology</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="website">Your Website URL</Label>
+              <Input
+                id="website"
+                type="url"
+                value={formData.website}
+                onChange={(e) => handleInputChange("website", e.target.value)}
+                placeholder="https://yourcompany.com"
+                className="w-full"
+              />
+              <p className="text-sm text-gray-500">Optional: Helps your agent reference your website content</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Platforms & Goals */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Target className="h-5 w-5 text-orange-600" />
+              <span>Platforms & Goals</span>
+            </CardTitle>
+            <CardDescription>
+              Choose where your agent will operate and what it should achieve
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+                <div className="space-y-2">
+              <Label>Where will your agent operate? *</Label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {PLATFORM_OPTIONS.map((platform) => (
+                      <Button
+                    key={platform.value}
+                    type="button"
+                    variant={formData.platforms.includes(platform.value) ? "default" : "outline"}
+                        size="sm"
+                    onClick={() => togglePlatform(platform.value)}
+                    className="justify-start"
+                      >
+                    {platform.label}
+                      </Button>
+                  ))}
+              </div>
+              <p className="text-sm text-gray-500">Select all platforms where your agent will be active</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="goal">What's your primary goal? *</Label>
+              <Textarea
+                id="goal"
+                value={formData.goal}
+                onChange={(e) => handleInputChange("goal", e.target.value)}
+                placeholder="e.g., Increase sales by 30%, Reduce support tickets by 50%, Generate 100 qualified leads per month..."
+                rows={2}
+                className="w-full"
+              />
+              <p className="text-sm text-gray-500">Define the main objective your agent should achieve</p>
+            </div>
+          </CardContent>
+        </Card>
+
+
+
+        {/* Submit Button */}
+        <Card>
           <CardContent className="pt-6">
             <Button
-              onClick={uploadTrainingResources}
-              disabled={isUploading || (trainingFiles.length === 0 && trainingUrls.length === 0)}
+              type="submit"
+              disabled={isSubmitting}
               className="w-full"
               size="lg"
             >
-              {isUploading ? (
+              {isSubmitting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Uploading Training Resources...
+                  Creating Your AI Agent...
                 </>
               ) : (
                 <>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Create Agent with Training Resources
+                  <Bot className="w-4 h-4 mr-2" />
+                  Create AI Agent
                 </>
               )}
             </Button>
             <p className="text-xs text-gray-500 mt-2 text-center">
-              {trainingFiles.length + trainingUrls.length} resource(s) ready to upload
+              Your agent will be ready to configure and deploy
             </p>
           </CardContent>
         </Card>
-      </div>
+      </form>
     </div>
   )
 }

@@ -22,6 +22,8 @@ export function OnboardingFlow() {
   const [formData, setFormData] = useState({})
   const router = useRouter()
 
+  console.log({...formData}, "checking data")
+
   const handleNext = (data?: any) => {
     if (data) {
       setFormData((prev) => ({ ...prev, ...data }))
@@ -86,6 +88,7 @@ export function OnboardingFlow() {
             onBack={handleBack}
             formData={formData}
             canGoBack={currentStep > 1}
+            setFormData={setFormData}
           />
         </Card>
       </div>

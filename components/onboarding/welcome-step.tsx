@@ -58,7 +58,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
         </div>
 
         <div className="text-center">
-          <Button onClick={onNext} size="lg" className="px-8">
+          <Button onClick={ ()=> onNext()} size="lg" className="px-8">
             Get Started
           </Button>
         </div>

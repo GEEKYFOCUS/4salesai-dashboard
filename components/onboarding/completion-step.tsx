@@ -12,6 +12,7 @@ interface CompletionStepProps {
 }
 
 export function CompletionStep({ onNext, formData }: CompletionStepProps) {
+  console.log(formData, "last form data")
   return (
     <>
       <CardHeader>
@@ -23,7 +24,7 @@ export function CompletionStep({ onNext, formData }: CompletionStepProps) {
       <CardContent className="space-y-6">
         <div className="text-center">
           <p className="text-gray-600 mb-6">
-            Congratulations! Your AI Sales Agent "{formData.agentName}" has been created successfully.
+            Congratulations! Your AI Sales Agent "{formData.companyName}" has been created successfully.
           </p>
         </div>
 
@@ -54,8 +55,8 @@ export function CompletionStep({ onNext, formData }: CompletionStepProps) {
           </div>
         </div>
 
-        <div className="text-center">
-          <Button onClick={onNext} size="lg" className="px-8">
+        <div className="text-center">   
+          <Button onClick={()=>onNext()} size="lg" className="px-8">
             Go to Dashboard
           </Button>
         </div>
