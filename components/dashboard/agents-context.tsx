@@ -1,7 +1,6 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from "react"
-import { getAIAgents } from "@/app/_lib/data-service"
 
 export interface Agent {
   id: string | number
@@ -56,18 +55,44 @@ const AgentsContext = createContext<AgentsContextType | undefined>(undefined)
 export const AgentsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [agents, setAgents] = useState<Agent[]>([])
 
-  // Load agents from API
-  const loadAgents = async () => {
-    const apiAgents = await getAIAgents();
-    setAgents(Array.isArray(apiAgents) ? apiAgents : []);
+  // Load agents from localStorage or use defaults
+  const loadAgents = () => {
+    let userAgents = JSON.parse(localStorage.getItem("userAgents") || "[]")
+
+    // Fix duplicate IDs
+    const seen = new Set()
+    let changed = false
+    userAgents = userAgents.map((agent: Agent) => {
+      if (seen.has(agent.id)) {
+        changed = true
+        return { ...agent, id: Date.now().toString() + Math.random().toString(36).slice(2) }
+      }
+      seen.add(agent.id)
+      return agent
+    })
+    if (changed) {
+      localStorage.setItem("userAgents", JSON.stringify(userAgents))
+    }
+
+    if (userAgents.length > 0) {
+      setAgents(userAgents)
+    } else {
+      setAgents(defaultAgents)
+    }
   }
 
   useEffect(() => {
     loadAgents()
   }, [])
 
+  // Save to localStorage whenever agents change
+  useEffect(() => {
+    localStorage.setItem("userAgents", JSON.stringify(agents))
+  }, [agents])
+
   const addAgent = (agent: Agent) => {
-    setAgents(prev => [...prev, agent])
+    const uniqueId = typeof agent.id === "undefined" || agent.id === "" ? Date.now().toString() : agent.id;
+    setAgents(prev => [...prev, { ...agent, id: uniqueId }])
   }
 
   const updateAgent = (updated: Agent) => {

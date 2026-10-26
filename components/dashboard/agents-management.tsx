@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { getAIAgents } from "@/app/_lib/data-service"
+import { useAgents } from "@/components/dashboard/agents-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,19 +9,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Bot, MoreHorizontal, Pause, Play, Plus, Settings } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-export function AgentsManagement() {      
+export function AgentsManagement() {
   const router = useRouter()
-  const [agents, setAgents] = useState<any[]>([])
-
-  useEffect(() => {
-    async function fetchAgents() {
-      const apiAgents = await getAIAgents()
-     const {data} = apiAgents
-     const {agents} = data
-      setAgents(Array.isArray(agents) ? agents : [])
-    }
-    fetchAgents()
-  }, [])
+  const { agents } = useAgents()
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -44,7 +33,7 @@ export function AgentsManagement() {
           <h1 className="text-3xl font-bold text-gray-900">AI Agents</h1>
           <p className="text-gray-600">Manage your AI sales agents and their performance</p>
         </div>
-        <Button onClick={() => router.push("/dashboard/agents/create")}> 
+        <Button onClick={() => router.push("/dashboard/agents/create")}>
           <Plus className="h-4 w-4 mr-2" />
           Create Agent
         </Button>
@@ -52,7 +41,7 @@ export function AgentsManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {agents.map((agent) => (
-          <Card key={agent?.agentId} className="hover:shadow-lg transition-shadow">
+          <Card key={agent.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-3">
@@ -72,13 +61,13 @@ export function AgentsManagement() {
                     <Button variant="ghost" size="icon">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger> 
+                  </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => router.push(`/dashboard/agents/${agent?.agentId}/edit`)}>
+                    <DropdownMenuItem onClick={() => router.push(`/dashboard/agents/${agent.id}/edit`)}>
                       <Settings className="h-4 w-4 mr-2" />
                       Edit Agent
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push(`/dashboard/agents/${agent?.agentId}/configure`)}>
+                    <DropdownMenuItem onClick={() => router.push(`/dashboard/agents/${agent.id}/configure`)}>
                       <Settings className="h-4 w-4 mr-2" />
                       Configure
                     </DropdownMenuItem>
@@ -103,41 +92,23 @@ export function AgentsManagement() {
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Role:</span>
-                  <span className="font-medium capitalize">{agent.role ?? '-'}</span>
+                  <span className="text-gray-600">Conversations:</span>
+                  <span className="font-medium">{agent.conversations}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Industry:</span>
-                  <span className="font-medium capitalize">{agent.industry ?? '-'}</span>
+                  <span className="text-gray-600">Conversions:</span>
+                  <span className="font-medium">{agent.conversions}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Platforms:</span>
-                  <span className="font-medium">{agent.platforms?.join(', ') ?? '-'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Goal:</span>
-                  <span className="font-medium text-xs">{agent.goal ?? '-'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Target Audience:</span>
-                  <span className="font-medium text-xs">{agent.target_audience ?? '-'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tone:</span>
-                  <span className="font-medium capitalize">{agent.tone ?? '-'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Created:</span>
-                  <span className="font-medium text-xs">
-                    {agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : '-'}
-                  </span>
+                  <span className="text-gray-600">Last Active:</span>
+                  <span className="font-medium">{agent.lastActive}</span>
                 </div>
                 <div className="pt-2">
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full bg-transparent"
-                    onClick={() => router.push(`/dashboard/agents/${agent?.agentId}/edit`)}
+                    onClick={() => router.push(`/dashboard/agents/${agent.id}/edit`)}
                   >
                     Manage Agent
                   </Button>

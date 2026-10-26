@@ -1,11 +1,10 @@
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { EditAgentForm } from "@/components/dashboard/edit-agent-form"
 
-export default async function EditAgentPage({ params }: { params: Promise<{ id: string }> }) {
-  const {id}  = await params 
-  console.log(id)
+export default function EditAgentPage({ params }: { params: { id: string } }) {
   return (
-      <EditAgentForm agentId={id} />
-  
+    <DashboardLayout>
+      <EditAgentForm agentId={params.id} />
+    </DashboardLayout>
   )
 }
